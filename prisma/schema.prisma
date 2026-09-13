@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model TrackedAccount {
+  id        String   @id @default(cuid())
+  gameName  String
+  tagLine   String
+  puuid     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  snapshots RankSnapshot[]
+}
+
+model RankSnapshot {
+  id           String   @id @default(cuid())
+  accountId    String
+  account      TrackedAccount @relation(fields: [accountId], references: [id])
+  queueType    String
+  tier         String
+  rank         String
+  leaguePoints Int
+  wins         Int
+  losses       Int
+  capturedAt   DateTime @default(now())
+
+  @@index([accountId, queueType, capturedAt])
+}
