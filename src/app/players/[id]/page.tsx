@@ -4,7 +4,8 @@ import { getLpScore } from "@/lib/rank-order";
 import { buildQueueStats, buildPeak, buildMilestones } from "@/lib/queue-stats";
 import { winStreak, totalLpGained } from "@/lib/derive";
 import { getHeadToHeadRecords } from "@/lib/head-to-head";
-import { getChampionIconUrl, getProfileIconUrl } from "@/lib/ddragon";
+import { getChampionIconUrl, getChampionSplashUrl, getChampionDisplayName, getProfileIconUrl } from "@/lib/ddragon";
+import { getChampionMasteries, getLeagueOfGraphsUrl } from "@/lib/riot";
 import { formatRelativeTime, formatDateTime } from "@/lib/relative-time";
 import { getSyncStatus } from "@/lib/sync-status";
 import { TIER_COLORS } from "@/lib/tier-colors";
@@ -56,6 +57,9 @@ export default async function PlayerPage({
     const historyPoints = ascending.map((s) => ({
       capturedAt: s.capturedAt.toISOString(),
       lpScore: getLpScore(s),
+      tier: s.tier,
+      rank: s.rank,
+      leaguePoints: s.leaguePoints,
     }));
     const peakSnapshot = buildPeak(snapshotsDesc);
     const peak = peakSnapshot
@@ -102,6 +106,21 @@ export default async function PlayerPage({
     friendsByMatchId.set(fp.matchId, list);
   }
 
+  const predictionRounds = matchIds.length
+    ? await prisma.predictionRound.findMany({
+        where: { matchId: { in: matchIds }, status: "resolved" },
+        include: { predictions: true },
+      })
+    : [];
+  const betsByMatchId = new Map<string, { count: number; total: number }>();
+  for (const round of predictionRounds) {
+    if (!round.matchId) continue;
+    const existing = betsByMatchId.get(round.matchId) ?? { count: 0, total: 0 };
+    existing.count += round.predictions.length;
+    existing.total += round.predictions.reduce((sum, p) => sum + p.amount, 0);
+    betsByMatchId.set(round.matchId, existing);
+  }
+
   const matches: MatchRow[] = participationsDesc.map((p) => ({
     matchId: p.matchId,
     championName: p.championName,
@@ -118,12 +137,28 @@ export default async function PlayerPage({
       tagLine: fp.account.tagLine,
       sameTeam: fp.teamId === p.teamId,
     })),
+    bets: betsByMatchId.get(p.matchId),
   }));
 
   const headToHead = await getHeadToHeadRecords(id);
 
   const mostRecent = await prisma.rankSnapshot.aggregate({ _max: { capturedAt: true } });
   const { syncedAgoText, nextSyncText } = getSyncStatus(mostRecent._max.capturedAt ?? undefined);
+
+  let bannerUrl: string | undefined;
+  let bannerChampionName: string | undefined;
+  try {
+    const [topMastery] = await getChampionMasteries(account.puuid, account.platform, 1);
+    if (topMastery) {
+      bannerUrl = await getChampionSplashUrl(topMastery.championId);
+      bannerChampionName = await getChampionDisplayName(topMastery.championId);
+    }
+  } catch (err) {
+    // Banner is a nice-to-have — never let a Riot/Data Dragon hiccup break the profile page.
+    console.error(`Failed to build profile banner for ${account.gameName}#${account.tagLine}:`, err);
+  }
+
+  const leagueOfGraphsUrl = getLeagueOfGraphsUrl(account.gameName, account.tagLine, account.platform);
 
   return (
     <>
@@ -139,6 +174,9 @@ export default async function PlayerPage({
         initialQueue={initialQueue}
         matches={matches}
         headToHead={headToHead}
+        bannerUrl={bannerUrl}
+        bannerChampionName={bannerChampionName}
+        leagueOfGraphsUrl={leagueOfGraphsUrl}
       />
     </>
   );

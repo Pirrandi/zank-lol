@@ -51,6 +51,33 @@ export async function getTopTripleKills(): Promise<FameHighlight | undefined> {
   };
 }
 
+export async function getTopQuadraKills(): Promise<FameHighlight | undefined> {
+  const grouped = await prisma.matchParticipation.groupBy({
+    by: ["accountId"],
+    _sum: { quadraKills: true },
+    orderBy: { _sum: { quadraKills: "desc" } },
+    take: 1,
+  });
+  const top = grouped[0];
+  if (!top || !top._sum.quadraKills || top._sum.quadraKills === 0) return undefined;
+
+  const account = await prisma.trackedAccount.findUnique({ where: { id: top.accountId } });
+  if (!account) return undefined;
+
+  const bestMatch = await prisma.matchParticipation.findFirst({
+    where: { accountId: top.accountId, quadraKills: { gt: 0 } },
+    orderBy: { quadraKills: "desc" },
+  });
+
+  return {
+    id: account.id,
+    gameName: account.gameName,
+    tagLine: account.tagLine,
+    championName: bestMatch?.championName ?? "",
+    value: top._sum.quadraKills,
+  };
+}
+
 export async function getTopEpicSteals(): Promise<FameHighlight | undefined> {
   const grouped = await prisma.matchParticipation.groupBy({
     by: ["accountId"],

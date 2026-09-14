@@ -5,7 +5,7 @@ import { winStreak, lossStreak, lpDropOverWindow, totalLpGained } from "@/lib/de
 import { getLpScore } from "@/lib/rank-order";
 import { getSyncStatus, getTierSpreadText, POLL_INTERVAL_MINUTES } from "@/lib/sync-status";
 import { getLatestVersion } from "@/lib/ddragon";
-import { getBiggestPentaKill, getTopTripleKills, getTopEpicSteals } from "@/lib/highlights";
+import { getBiggestPentaKill, getTopQuadraKills, getTopTripleKills, getTopEpicSteals } from "@/lib/highlights";
 import { LadderBoard, type PlayerRow } from "./ladder-board";
 import { Nav } from "./nav";
 
@@ -138,12 +138,13 @@ export default async function HomePage() {
   const topStreaks = streaks.slice(0, 3);
   const topDrops = drops.slice(0, 3);
 
-  const [pentaKill, topTriples, topSteals] = await Promise.all([
+  const [pentaKill, topQuadras, topTriples, topSteals] = await Promise.all([
     getBiggestPentaKill(),
+    getTopQuadraKills(),
     getTopTripleKills(),
     getTopEpicSteals(),
   ]);
-  const fameHighlights = [pentaKill, topTriples, topSteals].filter(Boolean);
+  const fameHighlights = [pentaKill, topQuadras, topTriples, topSteals].filter(Boolean);
 
   return (
     <>
@@ -241,6 +242,18 @@ export default async function HomePage() {
                       value="x1"
                       unit={`con ${pentaKill.championName}`}
                       roast="Se cree Faker."
+                    />
+                  )}
+                  {topQuadras && (
+                    <FameCard
+                      emoji="💥"
+                      label="Rey de los cuádruples"
+                      id={topQuadras.id}
+                      gameName={topQuadras.gameName}
+                      tagLine={topQuadras.tagLine}
+                      value={`x${topQuadras.value}`}
+                      unit={`cuádruples · mejor con ${topQuadras.championName}`}
+                      roast="A un kill de ser leyenda."
                     />
                   )}
                   {topTriples && (

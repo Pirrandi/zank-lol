@@ -16,9 +16,50 @@ model TrackedAccount {
   profileIconId  Int?
   inGame         Boolean  @default(false)
   createdAt      DateTime @default(now())
-  snapshots      RankSnapshot[]
-  participations MatchParticipation[]
-  analysis       PlayerAnalysis?
+  snapshots       RankSnapshot[]
+  participations  MatchParticipation[]
+  analysis        PlayerAnalysis?
+  predictionRounds PredictionRound[]
+}
+
+model PredictionRound {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     TrackedAccount @relation(fields: [accountId], references: [id])
+  gameId      String?
+  matchId     String?
+  match       Match?   @relation(fields: [matchId], references: [id])
+  queueType   String
+  championId  Int
+  messageId   String
+  content     String   @default("")
+  status      String   @default("open")
+  result      Boolean?
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+  predictions Prediction[]
+
+  @@index([gameId, status])
+  @@index([matchId])
+}
+
+model Prediction {
+  id              String   @id @default(cuid())
+  roundId         String
+  round           PredictionRound @relation(fields: [roundId], references: [id])
+  discordUserId   String
+  discordUsername String
+  guess           Boolean
+  amount          Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@unique([roundId, discordUserId])
+}
+
+model Bettor {
+  discordUserId   String @id
+  discordUsername String
+  balance         Int    @default(100)
 }
 
 model PlayerAnalysis {
@@ -46,11 +87,12 @@ model RankSnapshot {
 }
 
 model Match {
-  id             String   @id
-  queueId        Int
-  gameCreation   DateTime
-  gameDuration   Int
-  participations MatchParticipation[]
+  id               String   @id
+  queueId          Int
+  gameCreation     DateTime
+  gameDuration     Int
+  participations   MatchParticipation[]
+  predictionRounds PredictionRound[]
 }
 
 model MatchParticipation {

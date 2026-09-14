@@ -1,24 +1,6 @@
 import { ImageResponse } from "next/og";
 import { TIER_COLORS, UNRANKED_COLOR } from "@/lib/tier-colors";
-
-let cachedFont: ArrayBuffer | undefined;
-
-async function loadArchivoFont(): Promise<ArrayBuffer> {
-  if (cachedFont) return cachedFont;
-  const cssUrl = "https://fonts.googleapis.com/css2?family=Archivo:wght@800&text=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%23%C1%C9%CD%D3%DA%D1%C7%E1%E9%ED%F3%FA%F1%E7.%2F%C2%B7";
-  const css = await (
-    await fetch(cssUrl, {
-      headers: {
-        "User-Agent": "Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 5.1; Trident/5.0)",
-      },
-    })
-  ).text();
-  const match = css.match(/src: url\(([^)]+)\) format\('(woff|opentype|truetype)'\)/);
-  if (!match) throw new Error("Could not resolve Archivo font source");
-  const fontRes = await fetch(match[1]);
-  cachedFont = await fontRes.arrayBuffer();
-  return cachedFont;
-}
+import { loadArchivoFont } from "@/lib/og-font";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -30,6 +12,7 @@ export async function GET(request: Request) {
   const queue = searchParams.get("queue") ?? "Solo/Dúo";
   const splashUrl = searchParams.get("splash");
   const championName = searchParams.get("champion");
+  const kicker = searchParams.get("kicker") ?? "¡Subió de rango!";
 
   const meta = TIER_COLORS[tier] ?? UNRANKED_COLOR;
   const noSubRank = tier === "MASTER" || tier === "GRANDMASTER" || tier === "CHALLENGER";
@@ -93,7 +76,7 @@ export async function GET(request: Request) {
               marginBottom: 14,
             }}
           >
-            ¡Subió de rango!
+            {kicker}
           </div>
           <div style={{ display: "flex", color: "#f5f6f8", fontSize: 64, fontWeight: 800, lineHeight: 1.02 }}>
             {gameName}

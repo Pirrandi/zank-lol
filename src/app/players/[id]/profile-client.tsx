@@ -9,7 +9,7 @@ import { LpChart } from "./lp-chart";
 
 export type FullQueueData = {
   stats: QueueStats | undefined;
-  historyPoints: { capturedAt: string; lpScore: number }[];
+  historyPoints: { capturedAt: string; lpScore: number; tier: string; rank: string; leaguePoints: number }[];
   peak: { tier: string; rank: string; leaguePoints: number } | undefined;
   milestones: { capturedAt: string; label: string }[];
   hasMatchData: boolean;
@@ -29,6 +29,7 @@ export type MatchRow = {
   when: string;
   playedAt: string;
   friends: { gameName: string; tagLine: string; sameTeam: boolean }[];
+  bets: { count: number; total: number } | undefined;
 };
 
 type Queue = "solo" | "flex";
@@ -51,6 +52,9 @@ export function ProfileClient({
   initialQueue,
   matches,
   headToHead,
+  bannerUrl,
+  bannerChampionName,
+  leagueOfGraphsUrl,
 }: {
   gameName: string;
   tagLine: string;
@@ -62,6 +66,9 @@ export function ProfileClient({
   initialQueue: Queue;
   matches: MatchRow[];
   headToHead: HeadToHeadRecord[];
+  bannerUrl: string | undefined;
+  bannerChampionName: string | undefined;
+  leagueOfGraphsUrl: string;
 }) {
   const [queue, setQueue] = useState<Queue>(initialQueue);
   const [range, setRange] = useState<Range>("30d");
@@ -93,62 +100,113 @@ export function ProfileClient({
         </Link>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap", padding: "16px 0 24px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {profileIconUrl && (
-            <div style={{ position: "relative", flex: "none" }}>
-              <img
-                src={profileIconUrl}
-                alt={gameName}
-                style={{ width: 64, height: 64, borderRadius: "50%", border: "2px solid var(--color-divider)", display: "block" }}
-              />
-              {inGame && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: -1,
-                    right: -1,
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    background: "var(--color-win)",
-                    border: "2px solid var(--color-bg)",
-                    boxShadow: "0 0 6px var(--color-win)",
-                    animation: "zkPulse 1.4s ease-in-out infinite",
-                  }}
+      <div
+        className="card"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          margin: "16px 0 24px",
+          padding: "28px 24px 20px",
+          minHeight: bannerUrl ? 300 : undefined,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          border: bannerUrl ? "1px solid rgba(11,12,16,0.92)" : undefined,
+          backgroundImage: bannerUrl
+            ? `linear-gradient(180deg, rgba(11,12,16,0.1) 0%, rgba(11,12,16,0.55) 65%, rgba(11,12,16,0.92) 100%), url(${bannerUrl})`
+            : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center 20%",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {profileIconUrl && (
+              <div style={{ position: "relative", flex: "none" }}>
+                <img
+                  src={profileIconUrl}
+                  alt={gameName}
+                  style={{ width: 64, height: 64, borderRadius: "50%", border: "2px solid var(--color-divider)", display: "block" }}
                 />
+                {inGame && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -1,
+                      right: -1,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "var(--color-win)",
+                      border: "2px solid var(--color-bg)",
+                      boxShadow: "0 0 6px var(--color-win)",
+                      animation: "zkPulse 1.4s ease-in-out infinite",
+                    }}
+                  />
+                )}
+              </div>
+            )}
+            <div>
+              <h1 style={{ fontSize: 42, margin: "0 0 4px" }}>
+                {gameName}
+                <span style={{ color: "var(--color-neutral-500)", fontWeight: 400 }}>#{tagLine}</span>
+              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                {inGame && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: "var(--color-win)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    ● En partida ahora
+                  </span>
+                )}
+                <a
+                  href={leagueOfGraphsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "var(--color-accent)",
+                    border: "1px solid var(--color-accent)",
+                    borderRadius: 999,
+                    padding: "3px 10px",
+                    textDecoration: "none",
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <path d="M15 3h6v6" />
+                    <path d="M10 14 21 3" />
+                  </svg>
+                  League of Graphs
+                </a>
+              </div>
+              {bannerChampionName && (
+                <div style={{ fontSize: 11, color: "var(--color-neutral-600)", marginTop: 6 }}>
+                  Mayor maestría: <span style={{ color: "var(--color-text)", fontWeight: 700 }}>{bannerChampionName}</span>
+                </div>
               )}
             </div>
-          )}
-          <div>
-            <h1 style={{ fontSize: 42, margin: "0 0 4px" }}>
-              {gameName}
-              <span style={{ color: "var(--color-neutral-500)", fontWeight: 400 }}>#{tagLine}</span>
-            </h1>
-            {inGame && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: "var(--color-win)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                ● En partida ahora
-              </span>
-            )}
           </div>
-        </div>
-        <div className="seg">
-          <label className="seg-opt">
-            <input type="radio" name="queue" checked={queue === "solo"} onChange={() => setQueue("solo")} />
-            Solo/Dúo
-          </label>
-          <label className="seg-opt">
-            <input type="radio" name="queue" checked={queue === "flex"} onChange={() => setQueue("flex")} />
-            Flexible
-          </label>
+          <div className="seg">
+            <label className="seg-opt">
+              <input type="radio" name="queue" checked={queue === "solo"} onChange={() => setQueue("solo")} />
+              Solo/Dúo
+            </label>
+            <label className="seg-opt">
+              <input type="radio" name="queue" checked={queue === "flex"} onChange={() => setQueue("flex")} />
+              Flexible
+            </label>
+          </div>
         </div>
       </div>
 
@@ -333,6 +391,22 @@ export function ProfileClient({
                             </span>
                           );
                         })}
+                      </div>
+                    )}
+                    {m.bets && m.bets.count > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: 999,
+                            color: "var(--color-accent)",
+                            border: "1px solid var(--color-accent)",
+                          }}
+                        >
+                          🎲 {m.bets.count} {m.bets.count === 1 ? "apostó" : "apostaron"} · {m.bets.total} fichas
+                        </span>
                       </div>
                     )}
                   </div>

@@ -60,7 +60,13 @@ export async function getSummonerByPuuid(
   return res.json();
 }
 
-export async function getActiveGame(puuid: string, platform: string): Promise<{ gameQueueConfigId: number } | null> {
+export type ActiveGame = {
+  gameId: number;
+  gameQueueConfigId: number;
+  participants: { puuid: string; championId: number; teamId: number }[];
+};
+
+export async function getActiveGame(puuid: string, platform: string): Promise<ActiveGame | null> {
   const url = `https://${platform}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`;
   const res = await fetch(url, { headers: riotHeaders() });
   if (res.status === 404) return null;
@@ -81,12 +87,24 @@ export type MatchParticipant = {
   assists: number;
   win: boolean;
   teamId: number;
+  teamPosition: string;
   doubleKills: number;
   tripleKills: number;
   quadraKills: number;
   pentaKills: number;
+  totalMinionsKilled: number;
+  neutralMinionsKilled: number;
+  totalDamageDealtToChampions: number;
+  item0: number;
+  item1: number;
+  item2: number;
+  item3: number;
+  item4: number;
+  item5: number;
+  item6: number;
   challenges?: {
     epicMonsterSteals?: number;
+    killParticipation?: number;
   };
 };
 
@@ -128,4 +146,52 @@ export async function getMatchDetail(
     );
   }
   return res.json();
+}
+
+export type ChampionMastery = {
+  championId: number;
+  championLevel: number;
+  championPoints: number;
+};
+
+export async function getChampionMasteries(
+  puuid: string,
+  platform: string,
+  count = 1
+): Promise<ChampionMastery[]> {
+  const url = `https://${platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/top?count=${count}`;
+  const res = await fetch(url, { headers: riotHeaders() });
+  if (!res.ok) {
+    throw new Error(
+      `Riot API ${res.status} - ${res.status === 401 ? "key likely expired" : "failed to fetch champion masteries"} (puuid=${puuid})`
+    );
+  }
+  return res.json();
+}
+
+// Riot platform routing values -> League of Graphs region slugs. LoG does not publish this
+// mapping officially; these follow the same conventions used across third-party LoL sites.
+const LEAGUE_OF_GRAPHS_REGION_SLUGS: Record<string, string> = {
+  na1: "na",
+  euw1: "euw",
+  eun1: "eune",
+  kr: "kr",
+  jp1: "jp",
+  br1: "br",
+  la1: "lan",
+  la2: "las",
+  oc1: "oce",
+  tr1: "tr",
+  ru: "ru",
+  ph2: "ph",
+  sg2: "sg",
+  th2: "th",
+  tw2: "tw",
+  vn2: "vn",
+};
+
+export function getLeagueOfGraphsUrl(gameName: string, tagLine: string, platform: string): string {
+  const region = LEAGUE_OF_GRAPHS_REGION_SLUGS[platform.toLowerCase()] ?? platform.toLowerCase();
+  const slug = `${encodeURIComponent(gameName)}-${encodeURIComponent(tagLine)}`;
+  return `https://www.leagueofgraphs.com/summoner/${region}/${slug}`;
 }

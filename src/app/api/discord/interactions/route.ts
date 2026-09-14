@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { tierLabel } from "@/lib/tier-colors";
 import { winrate } from "@/lib/queue-stats";
 import { getAccountByRiotId } from "@/lib/riot";
+import { placeBet, getOrCreateBettor } from "@/lib/betting";
+import { updatePredictionMessageContent } from "@/lib/discord";
 
 const SOLO_QUEUE_TYPE = "RANKED_SOLO_5x5";
 const ADMIN_ROLE_ID = "1342180889123098695";
@@ -14,12 +16,18 @@ type DiscordInteractionOption = {
   value: string;
 };
 
+type DiscordModalComponentRow = {
+  components: { custom_id: string; value: string }[];
+};
+
 type DiscordInteraction = {
   type: number;
-  member?: { roles?: string[] };
+  member?: { roles?: string[]; user?: { id: string; username: string } };
   data?: {
     name?: string;
+    custom_id?: string;
     options?: DiscordInteractionOption[];
+    components?: DiscordModalComponentRow[];
   };
 };
 
@@ -100,6 +108,91 @@ async function buildAddPlayerReply(nombre: string, tag: string): Promise<string>
   }
 }
 
+async function buildBetModal(
+  customId: string,
+  userId: string | undefined,
+  username: string | undefined
+): Promise<{ content: string } | { modal: Record<string, unknown> }> {
+  const [prefix, choice, roundId] = customId.split(":");
+  if (prefix !== "predict" || (choice !== "win" && choice !== "lose") || !roundId) {
+    return { content: "Botón no reconocido." };
+  }
+  if (!userId || !username) {
+    return { content: "No pude identificarte." };
+  }
+
+  const bettor = await getOrCreateBettor(userId, username);
+
+  return {
+    modal: {
+      custom_id: `bet_modal:${choice}:${roundId}`,
+      title: choice === "win" ? "Apostar a que GANA" : "Apostar a que PIERDE",
+      components: [
+        {
+          type: 1,
+          components: [
+            {
+              type: 4,
+              custom_id: "amount",
+              style: 1,
+              label: `Fichas a apostar (tenés ${bettor.balance})`,
+              required: false,
+              placeholder: bettor.balance > 0 ? `Máximo ${bettor.balance}, vacío = apuesta mínima` : "Sin fichas — apostá igual, gratis",
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+async function refreshRoundStatsMessage(roundId: string): Promise<void> {
+  const round = await prisma.predictionRound.findUnique({ where: { id: roundId } });
+  if (!round) return;
+
+  const stats = await prisma.prediction.aggregate({
+    where: { roundId },
+    _count: true,
+    _sum: { amount: true },
+  });
+  const count = stats._count;
+  const total = stats._sum.amount ?? 0;
+  const statsLine = `\n\n📊 **${count}** ${count === 1 ? "persona apostó" : "personas apostaron"} — **${total}** fichas en juego`;
+
+  await updatePredictionMessageContent(round.messageId, `${round.content}${statsLine}`);
+}
+
+async function buildBetSubmitReply(interaction: DiscordInteraction): Promise<string> {
+  const customId = interaction.data?.custom_id ?? "";
+  const [prefix, choice, roundId] = customId.split(":");
+  if (prefix !== "bet_modal" || (choice !== "win" && choice !== "lose") || !roundId) {
+    return "Algo salió mal con la apuesta.";
+  }
+
+  const userId = interaction.member?.user?.id;
+  const username = interaction.member?.user?.username;
+  if (!userId || !username) {
+    return "No pude identificarte.";
+  }
+
+  const amountText = interaction.data?.components?.[0]?.components?.[0]?.value ?? "";
+  const result = await placeBet(roundId, userId, username, choice === "win", amountText);
+
+  if (!result.ok) {
+    return result.error;
+  }
+
+  try {
+    await refreshRoundStatsMessage(roundId);
+  } catch (err) {
+    console.error(`Failed to refresh prediction stats message for round ${roundId}:`, err);
+  }
+
+  return result.amount > 0
+    ? `Apostaste **${result.amount}** fichas a que **${choice === "win" ? "gana" : "pierde"}**. Saldo restante: ${result.balanceAfter}.`
+    : `Apuesta anotada (sin fichas de por medio) a que **${choice === "win" ? "gana" : "pierde"}**. Si acertás igual ganás algo.`;
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("X-Signature-Ed25519");
@@ -113,6 +206,29 @@ export async function POST(request: Request) {
 
   if (interaction.type === 1) {
     return NextResponse.json({ type: 1 });
+  }
+
+  if (interaction.type === 3) {
+    const result = await buildBetModal(
+      interaction.data?.custom_id ?? "",
+      interaction.member?.user?.id,
+      interaction.member?.user?.username
+    );
+    if ("modal" in result) {
+      return NextResponse.json({ type: 9, data: result.modal });
+    }
+    return NextResponse.json({
+      type: 4,
+      data: { content: result.content, flags: EPHEMERAL },
+    });
+  }
+
+  if (interaction.type === 5) {
+    const content = await buildBetSubmitReply(interaction);
+    return NextResponse.json({
+      type: 4,
+      data: { content, flags: EPHEMERAL },
+    });
   }
 
   if (interaction.type === 2) {
