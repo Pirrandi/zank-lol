@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Setting {
+  key   String @id
+  value String
+}
+
 model TrackedAccount {
   id             String   @id @default(cuid())
   gameName       String

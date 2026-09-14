@@ -1,13 +1,17 @@
 import { WIN_COLOR, LOSS_COLOR } from "./tier-colors";
+import { getSetting, SETTING_KEYS } from "./settings";
 
-// Global kill switch for all outbound Discord messages. Off by default — this is meant to be
-// turned on from the future admin panel, not by editing this file. Until then, nothing posts.
-function discordMessagingEnabled(): boolean {
+// Global kill switch for all outbound Discord messages. Off by default. Editable live from the
+// admin panel (/admin/settings) — the DB value wins when present, falling back to the
+// DISCORD_ALERTS_ENABLED env var so nothing breaks before the panel has been used once.
+async function discordMessagingEnabled(): Promise<boolean> {
+  const dbValue = await getSetting(SETTING_KEYS.discordAlertsEnabled);
+  if (dbValue !== undefined) return dbValue === "true";
   return process.env.DISCORD_ALERTS_ENABLED === "true";
 }
 
 async function postToDiscord(body: unknown, channelId?: string): Promise<{ id: string } | undefined> {
-  if (!discordMessagingEnabled()) return undefined;
+  if (!(await discordMessagingEnabled())) return undefined;
 
   const token = process.env.DISCORD_BOT_TOKEN;
   const targetChannel = channelId ?? process.env.DISCORD_CHANNEL_ID;
@@ -28,12 +32,14 @@ async function postToDiscord(body: unknown, channelId?: string): Promise<{ id: s
   return res.json();
 }
 
-function predictionsChannelId(): string | undefined {
-  return process.env.DISCORD_PREDICTIONS_CHANNEL_ID ?? process.env.DISCORD_CHANNEL_ID;
+async function predictionsChannelId(): Promise<string | undefined> {
+  const dbValue = await getSetting(SETTING_KEYS.predictionsChannelId);
+  return dbValue || process.env.DISCORD_PREDICTIONS_CHANNEL_ID || process.env.DISCORD_CHANNEL_ID;
 }
 
-function matchRecapChannelId(): string | undefined {
-  return process.env.DISCORD_MATCH_RECAP_CHANNEL_ID ?? process.env.DISCORD_CHANNEL_ID;
+async function matchRecapChannelId(): Promise<string | undefined> {
+  const dbValue = await getSetting(SETTING_KEYS.matchRecapChannelId);
+  return dbValue || process.env.DISCORD_MATCH_RECAP_CHANNEL_ID || process.env.DISCORD_CHANNEL_ID;
 }
 
 export async function sendRankUpAlert(content: string): Promise<void> {
@@ -146,7 +152,7 @@ export async function sendMatchRecapEmbed(params: MatchRecapEmbedParams): Promis
         footer: params.footerText ? { text: params.footerText } : undefined,
       },
     ],
-  }, matchRecapChannelId());
+  }, await matchRecapChannelId());
 }
 
 export type GroupRecapPlayer = {
@@ -200,7 +206,7 @@ export async function sendGroupMatchRecapEmbed(params: MatchGroupRecapEmbedParam
         footer: params.footerText ? { text: params.footerText } : undefined,
       },
     ],
-  }, matchRecapChannelId());
+  }, await matchRecapChannelId());
 }
 
 export async function sendPredictionRound(
@@ -229,20 +235,20 @@ export async function sendPredictionRound(
         },
       ],
     },
-    predictionsChannelId()
+    await predictionsChannelId()
   );
   return message?.id;
 }
 
 export async function sendToPredictionsChannel(content: string): Promise<void> {
-  await postToDiscord({ content }, predictionsChannelId());
+  await postToDiscord({ content }, await predictionsChannelId());
 }
 
 async function patchPredictionMessage(messageId: string, body: unknown): Promise<void> {
-  if (!discordMessagingEnabled()) return;
+  if (!(await discordMessagingEnabled())) return;
 
   const token = process.env.DISCORD_BOT_TOKEN;
-  const channelId = predictionsChannelId();
+  const channelId = await predictionsChannelId();
   if (!token || !channelId) return;
 
   await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
