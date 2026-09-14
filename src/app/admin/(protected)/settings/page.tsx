@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getAllSettings } from "@/lib/settings";
 import { saveSettingsAction } from "./actions";
 
@@ -16,10 +15,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <div style={{ maxWidth: 560, margin: "60px auto", padding: "0 16px" }}>
-      <Link href="/admin" style={{ color: "var(--color-neutral-500)", fontSize: 13 }}>
-        ← Panel
-      </Link>
-      <h1 style={{ fontSize: 22, margin: "8px 0 24px" }}>Configuración</h1>
+      <h1 style={{ fontSize: 22, margin: "0 0 24px" }}>Configuración</h1>
 
       <form
         action={saveSettingsAction}

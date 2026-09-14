@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierLabel } from "@/lib/tier-colors";
 import { addAccountAction, removeAccountAction } from "./actions";
@@ -22,10 +21,7 @@ export default async function AdminAccountsPage({
 
   return (
     <div style={{ maxWidth: 720, margin: "60px auto", padding: "0 16px" }}>
-      <Link href="/admin" style={{ color: "var(--color-neutral-500)", fontSize: 13 }}>
-        ← Panel
-      </Link>
-      <h1 style={{ fontSize: 22, margin: "8px 0 24px" }}>Cuentas trackeadas</h1>
+      <h1 style={{ fontSize: 22, margin: "0 0 24px" }}>Cuentas trackeadas</h1>
 
       <form
         action={addAccountAction}
