@@ -35,6 +35,8 @@ DISCORD_BOT_TOKEN="..."           # Discord Developer Portal → Bot → Reset T
 DISCORD_CHANNEL_ID="..."          # canal donde el bot postea los avisos
 DISCORD_PUBLIC_KEY="..."          # Discord Developer Portal → General Information → verify_key
 GROQ_API_KEY="gsk_..."            # console.groq.com/keys
+ADMIN_PASSWORD_HASH="..."         # hash del password del panel /admin — generar con: npm run hash-admin-password -- <tu-password>
+SESSION_SECRET="..."              # string random largo para firmar la cookie de sesión del admin, ej: openssl rand -hex 32
 ```
 
 ## Setup

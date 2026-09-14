@@ -9,7 +9,8 @@
     "add-account": "tsx scripts/add-account.ts",
     "poll": "tsx scripts/poll.ts",
     "register-discord-command": "tsx scripts/register-discord-command.ts",
-    "analyze": "tsx scripts/analyze.ts"
+    "analyze": "tsx scripts/analyze.ts",
+    "hash-admin-password": "tsx scripts/hash-admin-password.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

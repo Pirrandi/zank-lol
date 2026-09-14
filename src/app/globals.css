@@ -199,6 +199,41 @@ img { display: block; max-width: 100%; }
 
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  min-height: 40px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.btn:hover { border-color: var(--color-divider-strong); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #0b0c10;
+}
+.btn-primary:hover { background: var(--color-accent-2); border-color: var(--color-accent-2); }
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--color-loss);
+  color: var(--color-loss);
+}
+.btn-danger:hover { background: color-mix(in srgb, var(--color-loss) 12%, transparent); }
+
 @keyframes zkFadeUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
