@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-import { getAccountByRiotId } from "../src/lib/riot";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma";
+import { addTrackedAccount } from "../src/lib/accounts";
 
 async function main() {
   const [gameName, tagLine] = process.argv.slice(2);
@@ -10,18 +8,7 @@ async function main() {
     process.exit(1);
   }
 
-  const account = await getAccountByRiotId(gameName, tagLine);
-
-  const saved = await prisma.trackedAccount.upsert({
-    where: { puuid: account.puuid },
-    update: { gameName: account.gameName, tagLine: account.tagLine },
-    create: {
-      gameName: account.gameName,
-      tagLine: account.tagLine,
-      puuid: account.puuid,
-      platform: "la2",
-    },
-  });
+  const saved = await addTrackedAccount(gameName, tagLine, "la2");
 
   console.log(`Tracked account: ${saved.gameName}#${saved.tagLine} (${saved.id})`);
 }
