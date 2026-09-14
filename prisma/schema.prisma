@@ -8,13 +8,25 @@ datasource db {
 }
 
 model TrackedAccount {
-  id        String   @id @default(cuid())
-  gameName  String
-  tagLine   String
-  puuid     String   @unique
-  platform  String
-  createdAt DateTime @default(now())
-  snapshots RankSnapshot[]
+  id             String   @id @default(cuid())
+  gameName       String
+  tagLine        String
+  puuid          String   @unique
+  platform       String
+  profileIconId  Int?
+  inGame         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  snapshots      RankSnapshot[]
+  participations MatchParticipation[]
+  analysis       PlayerAnalysis?
+}
+
+model PlayerAnalysis {
+  id          String   @id @default(cuid())
+  accountId   String   @unique
+  account     TrackedAccount @relation(fields: [accountId], references: [id])
+  text        String
+  generatedAt DateTime @default(now())
 }
 
 model RankSnapshot {
@@ -27,7 +39,38 @@ model RankSnapshot {
   leaguePoints Int
   wins         Int
   losses       Int
+  hotStreak    Boolean  @default(false)
   capturedAt   DateTime @default(now())
 
   @@index([accountId, queueType, capturedAt])
+}
+
+model Match {
+  id             String   @id
+  queueId        Int
+  gameCreation   DateTime
+  gameDuration   Int
+  participations MatchParticipation[]
+}
+
+model MatchParticipation {
+  id           String   @id @default(cuid())
+  matchId      String
+  match        Match    @relation(fields: [matchId], references: [id])
+  accountId    String
+  account      TrackedAccount @relation(fields: [accountId], references: [id])
+  championName String
+  championId   Int
+  kills        Int
+  deaths       Int
+  assists      Int
+  win          Boolean
+  teamId       Int
+  doubleKills  Int      @default(0)
+  tripleKills  Int      @default(0)
+  quadraKills  Int      @default(0)
+  pentaKills   Int      @default(0)
+  epicSteals   Int      @default(0)
+
+  @@unique([matchId, accountId])
 }

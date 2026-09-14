@@ -7,14 +7,17 @@
     "build": "next build",
     "start": "next start",
     "add-account": "tsx scripts/add-account.ts",
-    "poll": "tsx scripts/poll.ts"
+    "poll": "tsx scripts/poll.ts",
+    "register-discord-command": "tsx scripts/register-discord-command.ts",
+    "analyze": "tsx scripts/analyze.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^2.15.0"
+    "recharts": "^2.15.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

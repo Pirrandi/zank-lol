@@ -36,6 +36,10 @@ export function getLpScore(entry: RankLike): number {
   return tierIndex(entry.tier) * 400 + rankIndex(entry.tier, entry.rank) * 100 + entry.leaguePoints;
 }
 
+export function divisionIndex(entry: Pick<RankLike, "tier" | "rank">): number {
+  return tierIndex(entry.tier) * 4 + rankIndex(entry.tier, entry.rank);
+}
+
 export function compareRank(a: RankLike, b: RankLike): number {
   return getLpScore(b) - getLpScore(a);
 }

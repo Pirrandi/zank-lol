@@ -1,117 +1,145 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getLpScore } from "@/lib/rank-order";
-import { LpChart } from "./lp-chart";
+import { buildQueueStats, buildPeak, buildMilestones } from "@/lib/queue-stats";
+import { winStreak, totalLpGained } from "@/lib/derive";
+import { getHeadToHeadRecords } from "@/lib/head-to-head";
+import { getChampionIconUrl, getProfileIconUrl } from "@/lib/ddragon";
+import { formatRelativeTime, formatDateTime } from "@/lib/relative-time";
+import { getSyncStatus } from "@/lib/sync-status";
+import { TIER_COLORS } from "@/lib/tier-colors";
+import { Nav } from "@/app/nav";
+import { ProfileClient, type FullQueueData, type MatchRow } from "./profile-client";
 
 export const dynamic = "force-dynamic";
 
-function winrate(wins: number, losses: number): string {
-  const total = wins + losses;
-  if (total === 0) return "0%";
-  return `${Math.round((wins / total) * 100)}%`;
-}
+const QUEUE_IDS: Record<string, number> = {
+  RANKED_SOLO_5x5: 420,
+  RANKED_FLEX_SR: 440,
+};
 
-const QUEUE_LABELS: Record<string, string> = {
-  RANKED_SOLO_5x5: "Solo/Duo",
-  RANKED_FLEX_SR: "Flex",
+const QUEUE_LABELS: Record<number, string> = {
+  420: "Solo/Dúo",
+  440: "Flexible",
 };
 
 export default async function PlayerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ queue?: string }>;
 }) {
   const { id } = await params;
+  const { queue: queueParam } = await searchParams;
+  const initialQueue: "solo" | "flex" = queueParam === "flex" ? "flex" : "solo";
 
   const account = await prisma.trackedAccount.findUnique({
     where: { id },
     include: {
-      snapshots: {
-        orderBy: { capturedAt: "desc" },
-      },
+      snapshots: { orderBy: { capturedAt: "desc" } },
+      participations: { include: { match: true } },
+      analysis: true,
     },
   });
 
   if (!account) notFound();
 
-  const latestByQueue: Record<string, (typeof account.snapshots)[number]> = {};
-  for (const snapshot of account.snapshots) {
-    if (!latestByQueue[snapshot.queueType]) {
-      latestByQueue[snapshot.queueType] = snapshot;
-    }
-  }
+  const participationsDesc = [...account.participations].sort(
+    (a, b) => b.match.gameCreation.getTime() - a.match.gameCreation.getTime()
+  );
 
-  const soloHistory = account.snapshots
-    .filter((s) => s.queueType === "RANKED_SOLO_5x5")
-    .slice()
-    .reverse()
-    .map((s) => ({
+  function buildQueueData(queueType: string): FullQueueData {
+    const snapshotsDesc = account!.snapshots.filter((s) => s.queueType === queueType);
+    const stats = buildQueueStats(snapshotsDesc);
+    const ascending = [...snapshotsDesc].reverse();
+    const historyPoints = ascending.map((s) => ({
       capturedAt: s.capturedAt.toISOString(),
-      tier: s.tier,
-      rank: s.rank,
-      leaguePoints: s.leaguePoints,
       lpScore: getLpScore(s),
     }));
+    const peakSnapshot = buildPeak(snapshotsDesc);
+    const peak = peakSnapshot
+      ? { tier: peakSnapshot.tier, rank: peakSnapshot.rank, leaguePoints: peakSnapshot.leaguePoints }
+      : undefined;
+    const rawMilestones = buildMilestones(snapshotsDesc);
+    const milestones = rawMilestones.map((m, i) => ({
+      capturedAt: m.capturedAt.toISOString(),
+      label: i === 0 ? "Primera partida clasificatoria" : `Alcanzó ${TIER_COLORS[m.tier]?.label ?? m.tier}`,
+    }));
+    const queueMatches = participationsDesc.filter((p) => p.match.queueId === QUEUE_IDS[queueType]);
+
+    return {
+      stats,
+      historyPoints,
+      peak,
+      milestones,
+      hasMatchData: queueMatches.length > 0,
+      winStreakCount: winStreak(queueMatches),
+      totalLpGained: totalLpGained(ascending),
+    };
+  }
+
+  const solo = buildQueueData("RANKED_SOLO_5x5");
+  const flex = buildQueueData("RANKED_FLEX_SR");
+
+  const uniqueChampionIds = [...new Set(participationsDesc.map((p) => p.championId))];
+  const iconEntries = await Promise.all(
+    uniqueChampionIds.map(async (championId) => [championId, await getChampionIconUrl(championId)] as const)
+  );
+  const iconByChampionId = new Map(iconEntries);
+
+  const matchIds = participationsDesc.map((p) => p.matchId);
+  const friendParticipations = matchIds.length
+    ? await prisma.matchParticipation.findMany({
+        where: { matchId: { in: matchIds }, accountId: { not: id } },
+        include: { account: true },
+      })
+    : [];
+  const friendsByMatchId = new Map<string, typeof friendParticipations>();
+  for (const fp of friendParticipations) {
+    const list = friendsByMatchId.get(fp.matchId) ?? [];
+    list.push(fp);
+    friendsByMatchId.set(fp.matchId, list);
+  }
+
+  const matches: MatchRow[] = participationsDesc.map((p) => ({
+    matchId: p.matchId,
+    championName: p.championName,
+    iconUrl: iconByChampionId.get(p.championId),
+    kills: p.kills,
+    deaths: p.deaths,
+    assists: p.assists,
+    win: p.win,
+    queueLabel: QUEUE_LABELS[p.match.queueId] ?? "Otra",
+    when: formatRelativeTime(p.match.gameCreation),
+    playedAt: formatDateTime(p.match.gameCreation),
+    friends: (friendsByMatchId.get(p.matchId) ?? []).map((fp) => ({
+      gameName: fp.account.gameName,
+      tagLine: fp.account.tagLine,
+      sameTeam: fp.teamId === p.teamId,
+    })),
+  }));
+
+  const headToHead = await getHeadToHeadRecords(id);
+
+  const mostRecent = await prisma.rankSnapshot.aggregate({ _max: { capturedAt: true } });
+  const { syncedAgoText, nextSyncText } = getSyncStatus(mostRecent._max.capturedAt ?? undefined);
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem" }}>
-      <a href="/" style={{ color: "#58a6ff" }}>
-        &larr; back to ladder
-      </a>
-      <h1 style={{ fontSize: "1.75rem", marginTop: "0.5rem" }}>
-        {account.gameName}#{account.tagLine}
-      </h1>
-
-      <div style={{ display: "flex", gap: "2rem", marginTop: "1.5rem" }}>
-        {Object.entries(latestByQueue).map(([queueType, snapshot]) => (
-          <div key={queueType}>
-            <div style={{ color: "#8b949e", fontSize: "0.85rem" }}>
-              {QUEUE_LABELS[queueType] ?? queueType}
-            </div>
-            <div style={{ fontSize: "1.1rem" }}>
-              {snapshot.tier} {snapshot.rank} - {snapshot.leaguePoints} LP
-            </div>
-            <div style={{ color: "#8b949e" }}>
-              {snapshot.wins}W {snapshot.losses}L ({winrate(snapshot.wins, snapshot.losses)})
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <h2 style={{ marginTop: "2rem", fontSize: "1.25rem" }}>Solo/Duo LP over time</h2>
-      <LpChart data={soloHistory} />
-
-      <h2 style={{ marginTop: "2rem", fontSize: "1.25rem" }}>Snapshots</h2>
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "1rem" }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid #30363d", color: "#8b949e", textAlign: "left" }}>
-            <th style={{ padding: "0.5rem" }}>Date</th>
-            <th style={{ padding: "0.5rem" }}>Queue</th>
-            <th style={{ padding: "0.5rem" }}>Rank</th>
-            <th style={{ padding: "0.5rem" }}>LP</th>
-            <th style={{ padding: "0.5rem" }}>W/L</th>
-          </tr>
-        </thead>
-        <tbody>
-          {account.snapshots.map((snapshot) => (
-            <tr key={snapshot.id} style={{ borderBottom: "1px solid #21262d" }}>
-              <td style={{ padding: "0.5rem" }}>
-                {snapshot.capturedAt.toLocaleString()}
-              </td>
-              <td style={{ padding: "0.5rem" }}>
-                {QUEUE_LABELS[snapshot.queueType] ?? snapshot.queueType}
-              </td>
-              <td style={{ padding: "0.5rem" }}>
-                {snapshot.tier} {snapshot.rank}
-              </td>
-              <td style={{ padding: "0.5rem" }}>{snapshot.leaguePoints}</td>
-              <td style={{ padding: "0.5rem" }}>
-                {snapshot.wins}W {snapshot.losses}L
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+    <>
+      <Nav isHome={false} syncedAgoText={syncedAgoText} nextSyncText={nextSyncText} />
+      <ProfileClient
+        gameName={account.gameName}
+        tagLine={account.tagLine}
+        profileIconUrl={account.profileIconId !== null ? await getProfileIconUrl(account.profileIconId) : undefined}
+        inGame={account.inGame}
+        analysisText={account.analysis?.text}
+        solo={solo}
+        flex={flex}
+        initialQueue={initialQueue}
+        matches={matches}
+        headToHead={headToHead}
+      />
+    </>
   );
 }

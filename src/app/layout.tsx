@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://zank.lol"),
   title: "zank.lol",
-  description: "SoloQ tracker",
+  description: "Ranking privado de League of Legends",
 };
 
 export default function RootLayout({
@@ -11,18 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          background: "#0d1117",
-          color: "#e6edf3",
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        }}
-      >
-        {children}
-      </body>
+    <html lang="es">
+      <body>{children}</body>
     </html>
   );
 }
