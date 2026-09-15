@@ -9,6 +9,7 @@ export const SETTING_KEYS = {
   discordAlertsEnabled: "discordAlertsEnabled",
   matchRecapChannelId: "matchRecapChannelId",
   predictionsChannelId: "predictionsChannelId",
+  rankUpChannelId: "rankUpChannelId",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -27,6 +28,7 @@ export async function getAllSettings(): Promise<Record<SettingKey, string | unde
     discordAlertsEnabled: byKey.get(SETTING_KEYS.discordAlertsEnabled),
     matchRecapChannelId: byKey.get(SETTING_KEYS.matchRecapChannelId),
     predictionsChannelId: byKey.get(SETTING_KEYS.predictionsChannelId),
+    rankUpChannelId: byKey.get(SETTING_KEYS.rankUpChannelId),
   };
 }
 

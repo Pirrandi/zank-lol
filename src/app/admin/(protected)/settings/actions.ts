@@ -7,6 +7,7 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
   const discordAlertsEnabled = formData.get("discordAlertsEnabled") === "on";
   const matchRecapChannelId = String(formData.get("matchRecapChannelId") ?? "").trim();
   const predictionsChannelId = String(formData.get("predictionsChannelId") ?? "").trim();
+  const rankUpChannelId = String(formData.get("rankUpChannelId") ?? "").trim();
 
   await setSetting(SETTING_KEYS.discordAlertsEnabled, discordAlertsEnabled ? "true" : "false");
 
@@ -22,6 +23,12 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
     await setSetting(SETTING_KEYS.predictionsChannelId, predictionsChannelId);
   } else {
     await deleteSetting(SETTING_KEYS.predictionsChannelId);
+  }
+
+  if (rankUpChannelId) {
+    await setSetting(SETTING_KEYS.rankUpChannelId, rankUpChannelId);
+  } else {
+    await deleteSetting(SETTING_KEYS.rankUpChannelId);
   }
 
   revalidatePath("/admin/settings");

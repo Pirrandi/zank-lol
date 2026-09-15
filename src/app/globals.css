@@ -105,6 +105,29 @@ img { display: block; max-width: 100%; }
 .input:hover { border-color: var(--color-divider-strong); }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
 
+.select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 34px 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23888888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.select:hover { border-color: var(--color-divider-strong); }
+.select:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+/* Native dropdown popups on Linux/Windows ignore the parent colors and render unreadably. */
+.select option,
+.select optgroup { background: var(--color-surface-2); color: var(--color-text); }
+
 .seg {
   display: inline-flex;
   overflow: hidden;

@@ -33,6 +33,7 @@ DATABASE_URL="file:./dev.db"
 RIOT_API_KEY="RGAPI-..."          # developer.riotgames.com — dev key expira cada 24h
 DISCORD_BOT_TOKEN="..."           # Discord Developer Portal → Bot → Reset Token
 DISCORD_CHANNEL_ID="..."          # canal donde el bot postea los avisos
+DISCORD_RANKUP_CHANNEL_ID="..."   # opcional — canal solo para avisos de rango (si falta, usa DISCORD_CHANNEL_ID)
 DISCORD_PUBLIC_KEY="..."          # Discord Developer Portal → General Information → verify_key
 GROQ_API_KEY="gsk_..."            # console.groq.com/keys
 ADMIN_PASSWORD_HASH="..."         # hash del password del panel /admin — generar con: npm run hash-admin-password -- <tu-password>
@@ -58,6 +59,14 @@ npm run build
    DISCORD_APPLICATION_ID="..." DISCORD_GUILD_ID="..." npm run register-discord-command
    ```
 5. Deployá la app y recién ahí, en el Developer Portal, poné la **Interactions Endpoint URL** en `https://tu-dominio/api/discord/interactions` (Discord manda un ping en vivo para verificarla, tiene que estar la app corriendo con `DISCORD_PUBLIC_KEY` puesto).
+
+### Canales desde el panel de admin
+
+En `/admin/settings` los canales de recaps de partida, predicciones y avisos de rango se eligen
+desde un desplegable que lista en vivo los canales de texto y de anuncios donde el bot puede
+postear (hace falta `DISCORD_BOT_TOKEN`; si está `DISCORD_GUILD_ID` se limita a ese servidor).
+Lo que se guarde ahí tiene prioridad sobre las variables de entorno; dejando la opción "Usar
+variable de entorno" se borra el valor de la base y vuelve a mandar el `.env`.
 
 ### Cron (poll cada 5 min + análisis diario)
 
